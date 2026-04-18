@@ -83,7 +83,7 @@ function getLatestCompletedMilestone(projectDir: string): { version: string; nam
  */
 function checkAgentsInstalled(): { agents_installed: boolean; missing_agents: string[] } {
   const agentsDir = process.env.GSD_AGENTS_DIR
-    || join(homedir(), '.claude', 'get-shit-done', 'agents');
+    || join(homedir(), '.claude', 'agents');
   const expectedAgents = Object.keys(MODEL_PROFILES);
 
   if (!existsSync(agentsDir)) {

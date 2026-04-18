@@ -116,6 +116,43 @@ describe('withProjectRoot', () => {
     const enriched = withProjectRoot(tmpDir, result, {});
     expect(enriched.response_language).toBeUndefined();
   });
+
+  // Regression: #2400 — checkAgentsInstalled was looking at the wrong default
+  // directory (~/.claude/get-shit-done/agents) while the installer writes to
+  // ~/.claude/agents, causing agents_installed: false even on clean installs.
+  it('reports agents_installed: true when all expected agents exist in GSD_AGENTS_DIR', async () => {
+    const { MODEL_PROFILES } = await import('./config-query.js');
+    const agentsDir = join(tmpDir, 'fake-agents');
+    await mkdir(agentsDir, { recursive: true });
+    for (const name of Object.keys(MODEL_PROFILES)) {
+      await writeFile(join(agentsDir, `${name}.md`), '# stub');
+    }
+    const prev = process.env.GSD_AGENTS_DIR;
+    process.env.GSD_AGENTS_DIR = agentsDir;
+    try {
+      const enriched = withProjectRoot(tmpDir, {});
+      expect(enriched.agents_installed).toBe(true);
+      expect(enriched.missing_agents).toEqual([]);
+    } finally {
+      if (prev === undefined) delete process.env.GSD_AGENTS_DIR;
+      else process.env.GSD_AGENTS_DIR = prev;
+    }
+  });
+
+  it('reports missing agents when GSD_AGENTS_DIR is empty', async () => {
+    const agentsDir = join(tmpDir, 'empty-agents');
+    await mkdir(agentsDir, { recursive: true });
+    const prev = process.env.GSD_AGENTS_DIR;
+    process.env.GSD_AGENTS_DIR = agentsDir;
+    try {
+      const enriched = withProjectRoot(tmpDir, {}) as Record<string, unknown>;
+      expect(enriched.agents_installed).toBe(false);
+      expect((enriched.missing_agents as string[]).length).toBeGreaterThan(0);
+    } finally {
+      if (prev === undefined) delete process.env.GSD_AGENTS_DIR;
+      else process.env.GSD_AGENTS_DIR = prev;
+    }
+  });
 });
 
 describe('initExecutePhase', () => {
